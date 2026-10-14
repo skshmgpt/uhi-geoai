@@ -34,7 +34,8 @@ def run_lst(data, year, classes_name=None):
     print(f"wrote {name}.tif  median {np.nanmedian(out):.2f} C")
 
 
-def run_hotspots(data, year, min_intensity, out_dir):
+def run_hotspots(data, year, min_intensity, out_dir, urban_min=C.HOTSPOT_URBAN_MIN_FRACTION):
+    """Needs builtfrac30_{year} from the calibrate step unless urban_min is 0."""
     t_lst, prof = rio.read(data, f"lst_{year}")
     wc, _ = rio.read(data, "worldcover30", dtype="uint8")
     transform = list(prof["transform"])[:6]
@@ -43,13 +44,17 @@ def run_hotspots(data, year, min_intensity, out_dir):
     win = rio.study_window_30m()
     study_inten = np.full_like(inten, np.nan)
     study_inten[win] = inten[win]  # hotspots only inside the study box
+    if urban_min > 0:
+        urban, _ = rio.read(data, f"builtfrac30_{year}")
+        study_inten[win] = hotspots.urban_only(study_inten[win], urban[0], urban_min)
     rows = hotspots.candidates(study_inten, transform, min_intensity)
     sql = hotspots.to_sql(rows, year, min_intensity)
     path = os.path.join(out_dir, f"hotspot_candidates_{year}_{min_intensity}.sql")
     with open(path, "w") as f:
         f.write(sql)
     rio.write(os.path.join(data, f"suhi_{year}.tif"), inten.astype(np.float32), prof, "float32", nodata=np.nan)
-    print(f"rural reference {ref:.2f} C from {int(rural.sum())} px; {len(rows)} candidate regions -> {path}")
+    print(f"rural reference {ref:.2f} C from {int(rural.sum())} px; urban mask >= {urban_min}; "
+          f"{len(rows)} candidate regions -> {path}")
 
 
 def calibration_inputs(data, year, classes_name):
@@ -161,6 +166,8 @@ def main():
     p.add_argument("--year", type=int, required=True)
     p.add_argument("--classes", help="class raster name, e.g. classes_2024 or labels_weak")
     p.add_argument("--min-intensity", type=float, default=C.HOTSPOT_MIN_INTENSITY_C)
+    p.add_argument("--urban-min", type=float, default=C.HOTSPOT_URBAN_MIN_FRACTION,
+                   help="minimum Built + Impervious share for a hotspot pixel; 0 disables the mask")
     p.add_argument("--out", default="results")
     p.add_argument("--n-boot", type=int, default=C.N_BOOTSTRAP)
     a = p.parse_args()
@@ -168,7 +175,7 @@ def main():
         run_lst(a.data, a.year, a.classes)
     elif a.step == "hotspots":
         os.makedirs(a.out, exist_ok=True)
-        run_hotspots(a.data, a.year, a.min_intensity, a.out)
+        run_hotspots(a.data, a.year, a.min_intensity, a.out, a.urban_min)
     elif a.step == "calibrate":
         run_calibrate(a.data, a.year, a.classes or f"classes_{a.year}", a.out, a.n_boot)
     else:

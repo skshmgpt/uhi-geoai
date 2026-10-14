@@ -30,6 +30,9 @@ RURAL_WC_CLASSES = (WC_SHRUB, WC_GRASS, WC_CROP)
 HOTSPOT_MIN_INTENSITY_C = 2.0
 HOTSPOT_MIN_AREA_M2 = 5_000
 HOTSPOT_DBSCAN_EPS_M = 60
+# Hotspots count only urban pixels: Built + Impervious share of the 30 m cell, from the segmentation.
+# Without it, dry bare fields on the fringe outrank the city in the pre-monsoon morning.
+HOTSPOT_URBAN_MIN_FRACTION = 0.5
 
 # Cooling model.
 SITE_MIN_AREA_M2 = 5_000  # 0.5 ha

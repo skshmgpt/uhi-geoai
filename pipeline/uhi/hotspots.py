@@ -32,6 +32,16 @@ def intensity(lst, rural):
     return lst - ref, ref
 
 
+def urban_only(intensity_c, urban_fraction, min_fraction=C.HOTSPOT_URBAN_MIN_FRACTION):
+    """Blank out non-urban pixels. `urban_fraction` may be smaller than `intensity_c` (cropped study
+    grid); pixels it does not cover count as non-urban."""
+    out = np.full_like(intensity_c, np.nan)
+    rows, cols = urban_fraction.shape
+    keep = np.isfinite(urban_fraction) & (urban_fraction >= min_fraction)
+    out[:rows, :cols] = np.where(keep, intensity_c[:rows, :cols], np.nan)
+    return out
+
+
 def candidates(intensity_c, transform, min_intensity=C.HOTSPOT_MIN_INTENSITY_C):
     """Connected regions with I >= threshold as (WKT polygon, mean intensity, area m2)."""
     from rasterio import features

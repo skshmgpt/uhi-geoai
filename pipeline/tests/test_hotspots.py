@@ -19,3 +19,12 @@ def test_intensity_uses_rural_median():
     rural = np.array([[False, False], [True, True]])
     inten, ref = hotspots.intensity(lst, rural)
     assert ref == 31.0 and inten[0, 1] == 11.0
+
+
+def test_urban_only_blanks_rural_and_uncovered_pixels():
+    inten = np.full((3, 4), 3.0)
+    urban = np.array([[0.9, 0.2, np.nan], [0.5, 0.49, 1.0]])  # covers 2 x 3 of the 3 x 4 window
+    out = hotspots.urban_only(inten, urban, 0.5)
+    assert np.isfinite(out).sum() == 3
+    assert out[0, 0] == 3.0 and out[1, 0] == 3.0 and out[1, 2] == 3.0
+    assert np.isnan(out[2]).all() and np.isnan(out[:, 3]).all()

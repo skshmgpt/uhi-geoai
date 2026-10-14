@@ -32,7 +32,8 @@ def test_calibrate_and_evaluate(city):
 
 
 def test_hotspots_find_the_planted_hot_blobs(city):
-    data, _ = city
+    data, results = city
+    process.run_calibrate(str(data), synthetic.YEAR, f"classes_{synthetic.YEAR}", str(results), n_boot=10)  # urban mask
     process.run_hotspots(str(data), synthetic.YEAR, 2.0, str(data))
     sql = (data / f"hotspot_candidates_{synthetic.YEAR}_2.0.sql").read_text()
     areas = [float(line.split("VALUES (")[1].split(", ")[3]) for line in sql.splitlines() if line.startswith("INSERT")]
