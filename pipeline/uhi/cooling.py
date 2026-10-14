@@ -112,7 +112,7 @@ def fit_decay(d, profile, min_rings=10):
     d, y = d[ok], profile[ok]
     p0 = (y[-5:].mean(), max(y[-5:].mean() - y[0], 0.1), 100.0)
     try:
-        popt, _ = curve_fit(decay, d, y, p0=p0, bounds=([-50, 0, 10], [90, 20, 3_000]), maxfev=5_000)
+        popt, _ = curve_fit(decay, d, y, p0=p0, bounds=([-50, 0, C.ELL_BOUNDS_M[0]], [90, 20, C.ELL_BOUNDS_M[1]]), maxfev=5_000)
     except (RuntimeError, ValueError):
         return None
     return tuple(float(v) for v in popt)
@@ -126,11 +126,24 @@ def observed_cooling(d, profile, far=C.FAR_FIELD_M):
     return profile[far_mask].mean() - profile
 
 
-def extent_m(dT, ell, threshold=C.EXTENT_THRESHOLD_C):
-    """Distance where predicted cooling drops below `threshold` (0 if it starts below)."""
+def ell_identified(ell, bounds=C.ELL_BOUNDS_M, margin=C.ELL_BOUND_MARGIN):
+    """False where the fitted decay length sits at a bound of the search range.
+
+    Pinned at the top, the profile never levels off inside the rings; at the bottom, the
+    cooling is shorter than one ring. Either way the data do not determine ell.
+    """
+    ell = np.asarray(ell, dtype=float)
+    return (ell > bounds[0] * (1 + margin)) & (ell < bounds[1] * (1 - margin))
+
+
+def extent_m(dT, ell, threshold=C.EXTENT_THRESHOLD_C, max_m=C.RING_MAX_M):
+    """Distance where cooling drops below `threshold` (0 if it starts below).
+
+    Capped at `max_m`, the edge of the measured rings: beyond it the model is extrapolating.
+    """
     dT, ell = np.asarray(dT, dtype=float), np.asarray(ell, dtype=float)
     with np.errstate(divide="ignore", invalid="ignore"):
-        return np.where(dT > threshold, ell * np.log(dT / threshold), 0.0)
+        return np.minimum(np.where(dT > threshold, ell * np.log(dT / threshold), 0.0), max_m)
 
 
 def theta_design(ln_area, ndvi, shape, built):
@@ -177,6 +190,7 @@ def fit_params(sites, n_boot=C.N_BOOTSTRAP, seed=0):
         "boot": boot,
         "ndvi_soil": NDVI_SOIL,
         "extent_threshold_c": C.EXTENT_THRESHOLD_C,
+        "extent_max_m": C.RING_MAX_M,
         "n_sites": int(n),
     }
 
@@ -205,14 +219,15 @@ def predict(params, area_m2, ndvi_target, ndvi_now, shape, built, q=(5, 50, 95))
     dT = max(float(np.dot(params["theta"], xt)) * s, 0.0)
     ell = float(math.exp(np.dot(params["phi"], xp)))
     thr = params["extent_threshold_c"]
+    cap = params.get("extent_max_m", math.inf)
     return {
         "scale": s,
         "dT": dT,
         "ell": ell,
-        "extent_m": float(extent_m(dT, ell, thr)),
+        "extent_m": float(extent_m(dT, ell, thr, cap)),
         "dT_q": [float(v) for v in np.percentile(dT_s, q)],
         "ell_q": [float(v) for v in np.percentile(ell_s, q)],
-        "extent_q": [float(v) for v in np.percentile(extent_m(dT_s, ell_s, thr), q)],
+        "extent_q": [float(v) for v in np.percentile(extent_m(dT_s, ell_s, thr, cap), q)],
     }
 
 

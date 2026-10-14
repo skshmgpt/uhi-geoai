@@ -137,8 +137,12 @@ def eval_cooling(results, year, n_splits=10, n_boot=200, seed=0):
     out["observed"] = {
         "mean_dT_c": float(s["dT"].mean()),
         "dT_ci95": [float(v) for v in _boot_ci(s["dT"], seed)],
+        "median_dT_c": float(np.median(s["dT"])),
         "mean_extent_m": float(obs_extent.mean()),
         "extent_ci95": [float(v) for v in _boot_ci(obs_extent, seed)],
+        "median_extent_m": float(np.median(obs_extent)),
+        "extent_censored_share": float(np.mean(obs_extent >= C.RING_MAX_M)),
+        "extent_cap_m": C.RING_MAX_M,
     }
     _dump(out, results, f"e6_cooling_{year}.json")
 

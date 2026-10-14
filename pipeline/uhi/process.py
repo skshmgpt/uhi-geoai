@@ -81,17 +81,21 @@ def run_calibrate(data, year, classes_name, out_dir, n_boot=C.N_BOOTSTRAP):
     d = cooling.ring_distances()
     t = x["profile30"]["transform"]
     kept, profiles = [], []
+    counts = {"candidates": n, "no_fit": 0, "ell_at_lower_bound": 0, "ell_at_upper_bound": 0}
     for s in profs:
         fit = cooling.fit_decay(d, s["profile"])
         if fit is None or not np.isfinite(s["built"]):
+            counts["no_fit"] += 1
             continue
         lst_inf, dT, ell = fit
-        if not (10 < ell < 3_000):
-            continue  # decay length pinned at a bound: not a usable fit
+        if not cooling.ell_identified(ell):
+            counts["ell_at_upper_bound" if ell > C.ELL_BOUNDS_M[0] * 10 else "ell_at_lower_bound"] += 1
+            continue
         s.update(lst_inf=lst_inf, dT=dT, ell=ell, x=t.c + (s["col"] + 0.5) * t.a, y=t.f + (s["row"] + 0.5) * t.e)
         kept.append(s)
         profiles.append(s["profile"])
-    print(f"{n} candidate sites, {len(kept)} usable fits")
+    counts["kept"] = len(kept)
+    print(f"{n} candidate sites, {len(kept)} usable fits ({counts})")
 
     os.makedirs(out_dir, exist_ok=True)
     keys = ["site_id", "x", "y", "area_m2", "ndvi", "shape", "built", "lst_inf", "dT", "ell"]
@@ -105,6 +109,7 @@ def run_calibrate(data, year, classes_name, out_dir, n_boot=C.N_BOOTSTRAP):
     arr["ln_area"] = np.log([s["area_m2"] for s in kept])
     params = cooling.fit_params(arr, n_boot=n_boot)
     params["year"] = year
+    params["fit_counts"] = counts
     cooling.save_params(params, os.path.join(out_dir, f"cooling_params_{year}.json"))
 
     prof = x["profile30"]

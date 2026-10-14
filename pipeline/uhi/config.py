@@ -39,6 +39,8 @@ RING_MAX_M = 1_000
 FAR_FIELD_M = (800, 1_000)
 BUILT_BUFFER_M = 300
 EXTENT_THRESHOLD_C = 0.5
+ELL_BOUNDS_M = (10, 3_000)  # decay-length search range for the per-site fit
+ELL_BOUND_MARGIN = 0.02  # fits within 2% of either bound are treated as unidentified
 N_BOOTSTRAP = 1_000
 
 

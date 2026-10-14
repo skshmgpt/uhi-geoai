@@ -5,6 +5,7 @@ import os
 import numpy as np
 import pytest
 
+from uhi import config as C
 from uhi import cooling
 
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "cooling_case.json")
@@ -110,3 +111,15 @@ def test_fixture_matches_python_predict():
         got = cooling.predict(case["params"], **c["input"])
         for k, v in c["expected"].items():
             np.testing.assert_allclose(got[k], v, rtol=1e-9, atol=1e-9)
+
+
+def test_extent_capped_at_ring_window():
+    assert cooling.extent_m(5.0, 3_000.0) == C.RING_MAX_M
+    assert cooling.extent_m(5.0, 3_000.0, max_m=np.inf) > 4_000
+
+
+def test_ell_at_search_bounds_is_unidentified():
+    lo, hi = C.ELL_BOUNDS_M
+    assert not cooling.ell_identified(hi - 0.01)
+    assert not cooling.ell_identified(lo + 0.0001)
+    assert cooling.ell_identified(150.0)

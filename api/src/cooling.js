@@ -19,8 +19,8 @@ export function ndviScale(ndviTarget, ndviNow, ndviSoil) {
   return clip((ndviTarget - ndviNow) / denom, 0, 1);
 }
 
-export function extentM(dT, ell, threshold) {
-  return dT > threshold ? ell * Math.log(dT / threshold) : 0;
+export function extentM(dT, ell, threshold, maxM = Infinity) {
+  return dT > threshold ? Math.min(ell * Math.log(dT / threshold), maxM) : 0;
 }
 
 export function predict(params, { area_m2, ndvi_target, ndvi_now, shape, built }, q = [5, 50, 95]) {
@@ -29,17 +29,18 @@ export function predict(params, { area_m2, ndvi_target, ndvi_now, shape, built }
   const xp = [1, lnArea, ndvi_target];
   const s = ndviScale(ndvi_target, ndvi_now, params.ndvi_soil);
   const thr = params.extent_threshold_c;
+  const cap = params.extent_max_m ?? Infinity;
   const b = params.boot;
   const dTs = b.theta.map((th, i) => Math.max((dot(th, xt) + b.eps_dT[i]) * s, 0));
   const ells = b.phi.map((ph, i) => Math.exp(dot(ph, xp) + b.eps_lnl[i]));
-  const extents = dTs.map((d, i) => extentM(d, ells[i], thr));
+  const extents = dTs.map((d, i) => extentM(d, ells[i], thr, cap));
   const dT = Math.max(dot(params.theta, xt) * s, 0);
   const ell = Math.exp(dot(params.phi, xp));
   return {
     scale: s,
     dT,
     ell,
-    extent_m: extentM(dT, ell, thr),
+    extent_m: extentM(dT, ell, thr, cap),
     dT_q: q.map((p) => percentile(dTs, p)),
     ell_q: q.map((p) => percentile(ells, p)),
     extent_q: q.map((p) => percentile(extents, p)),
