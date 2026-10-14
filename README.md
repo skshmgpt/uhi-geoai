@@ -95,9 +95,9 @@ cd api && UHI_YEAR=2099 node src/server.js
 |----|----------|-------|
 | E1/E2 | Segmentation accuracy and temporal transfer (train 2023–24, test 2025) | `uhi.seg.train`, notebook §3 |
 | E4 | LST vs Landsat L2 surface temperature | `python -m uhi.evaluate lst` |
-| E5 | Hotspot stability across years and thresholds | `hotspot_jaccard()` in `db/02_hotspots.sql` |
+| E5 | Hotspot stability across years and thresholds | `scripts/e5_stability.sh` |
 | E6 | Cooling model, spatial cross-validation | `python -m uhi.evaluate cooling` |
-| E7 | Canopy-gain check | not built yet |
-| E9 | API latency | not built yet |
+| E7 | Canopy-gain check | not run |
+| E9 | API latency | `node api/scripts/bench.js` |
 
-Every number in the paper must come from these logs. Nothing from the planning documents is a result.
+Paper: `docs/paper.docx` (source `docs/paper-draft.md`, figures from `scripts/make_figures.py`). Every number in the paper must come from these logs. Nothing from the planning documents is a result.
