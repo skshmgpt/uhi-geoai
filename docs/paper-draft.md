@@ -2,11 +2,11 @@
 
 Oct 14, 2026 · @saksham
 
-> **Draft status.** The methods, system design and evaluation protocol are complete. Every number in Results is a placeholder marked **\[TBD\]**. Each one gets filled in once the experiments run. Do not submit this draft with placeholders, and do not reuse the results tables from the earlier metaplan: no experiment produced those numbers. Author names, affiliations and the target venue are still open.
+> **Draft status.** E1–E4 and E6 have run on the Delhi exports (run of 14–15 October 2026; logs in `pipeline/results/` and `pipeline/runs/`). Every number in Results is copied from those logs. Still open: the hand-corrected test tiles (until they exist, segmentation scores are measured against weak labels and show ranking only), E5 hotspot stability (blocked on the urban-mask question in §7.3), E7 and E9. Do not reuse the results tables from the earlier metaplan: no experiment produced those numbers. Author names, affiliations and the target venue are still open.
 
 ## Abstract
 
-Prior work on urban heat solves single stages of the problem. Some papers retrieve Land Surface Temperature (LST), others monitor heat islands, measure how parks cool their surroundings, or explain cooling after the fact. None gives a planner a way to test a proposed green space before it is built. We present an open, decoupled GeoAI platform that joins these stages. It builds cloud-masked Sentinel-2 and Landsat 8/9 summer composites in Google Earth Engine. It retrieves LST from Landsat Band 10 through radiometric inversion with NDVI-based emissivity. A U-Net++ network with an EfficientNet-B4 encoder segments four urban classes, trained with a hybrid Focal–Dice loss. PostGIS ranks contiguous surface heat-island hotspots. A distance-decay cooling model is calibrated on the city's own segmented green spaces and served through a REST API, so a planner can draw a polygon on a web map and get a predicted LST reduction with an uncertainty band. We evaluate the system on Delhi NCT over the 2023–2025 pre-monsoon seasons, holding out 2025 as a temporal transfer test. We report segmentation IoU against U-Net and DeepLabv3+ baselines, LST error against the USGS Collection 2 surface temperature product, cooling-model error under spatially blocked cross-validation, and end-to-end API latency. Results: **\[TBD\]**.
+Prior work on urban heat solves single stages of the problem. Some papers retrieve Land Surface Temperature (LST), others monitor heat islands, measure how parks cool their surroundings, or explain cooling after the fact. None gives a planner a way to test a proposed green space before it is built. We present an open, decoupled GeoAI platform that joins these stages. It builds cloud-masked Sentinel-2 and Landsat 8/9 summer composites in Google Earth Engine. It retrieves LST from Landsat Band 10 through radiometric inversion with NDVI-based emissivity. A U-Net++ network with an EfficientNet-B4 encoder segments four urban classes, trained with a hybrid Focal–Dice loss. PostGIS ranks contiguous surface heat-island hotspots. A distance-decay cooling model is calibrated on the city's own segmented green spaces and served through a REST API, so a planner can draw a polygon on a web map and get a predicted LST reduction with an uncertainty band. We evaluate the system on Delhi NCT over the 2023–2025 pre-monsoon seasons, holding out 2025 as a temporal transfer test. We report segmentation IoU against U-Net and DeepLabv3+ baselines, LST error against the USGS Collection 2 surface temperature product, cooling-model error under spatially blocked cross-validation, and end-to-end API latency. Our single-channel LST runs 6.0–6.8 °C below the USGS product; after removing that offset the error is 0.9–1.5 °C (R² 0.63–0.86). Against weak labels, U-Net++ with Focal–Dice loss has the highest mIoU in all three years and holds up on unseen 2025 imagery. Under spatially blocked cross-validation, the cooling model predicts boundary cooling within 0.8–1.1 °C and its 90% prediction intervals cover 88–90% of held-out sites, but site traits do not improve on a trait-free mean profile for the full distance curve. Hand-corrected segmentation accuracy and latency: **\[TBD\]**.
 
 **Keywords:** urban heat island, land surface temperature, semantic segmentation, U-Net++, Google Earth Engine, PostGIS, urban green space, cooling effect, decision support, GeoAI
 
@@ -131,7 +131,7 @@ The synopsis proposed ΔLST = θ₁ ln(Area) + θ₂ ΔNDVI + θ₃ Dist. That f
 LST_g(d) = LST_{g,\infty} - \Delta T_g \, e^{-d/\ell_g}
 ```
 
-ΔT\_g is the cooling at the site boundary and ℓ\_g is its decay length. The cooling extent is the distance where cooling falls below 0.5 °C: d\* = ℓ ln(ΔT / 0.5).
+ΔT\_g is the cooling at the site boundary and ℓ\_g is its decay length. The fit searches ℓ in \[10, 3000\] m. A fit within 2% of either bound does not identify ℓ: at the lower bound the cooling is shorter than one ring, at the upper bound the profile never levels off inside 1 km. Such sites are excluded from calibration and counted (Section 7.4). The cooling extent is the distance where cooling falls below 0.5 °C, d\* = ℓ ln(ΔT / 0.5), capped at the 1 km edge of the rings, since beyond it the fit would be extrapolating.
 
 **Step 2: cross-site regression.** Both quantities are regressed on site traits:
 
@@ -158,7 +158,7 @@ The offline pipeline writes rasters, hotspot polygons and fitted cooling paramet
 | Segmentation | PyTorch, segmentation-models-pytorch, ONNX Runtime | 7-channel tiles | 4-class map GeoTIFF |
 | Hotspots and calibration | PostGIS 3, SciPy, scikit-learn | LST and class rasters | Ranked hotspot polygons; cooling coefficients and bootstrap samples |
 | Cooling API | Node.js 20, Express, `pg` | GeoJSON polygon, target NDVI | Predicted ΔT, extent, 90% interval, ring GeoJSON |
-| Web map | React, Leaflet, Leaflet-Draw | API responses, vector tiles | Interactive dashboard |
+| Web map | React, Leaflet | API responses, LST overlay | Interactive dashboard with polygon drawing |
 
 All services run in Docker Compose. A workstation GPU is needed only for training. Inference and serving run on CPU.
 
@@ -186,56 +186,77 @@ Every component is tested against a reference it was not trained on. Splits are 
 
 ## 7. Results
 
-No experiments have run yet. The tables below fix the layout so results can drop straight in. Each cell is filled from the experiment logs, never by hand.
+All numbers below are copied from the experiment logs of one end-to-end run (Colab, NVIDIA T4). Segmentation runs used 834 tiles (573 train, 126 validation, 135 test, 45 test tiles per year).
 
 ### 7.1 Segmentation (E1–E3)
 
-| Model | Encoder | Loss | mIoU (%) | Built IoU | Impervious IoU | Canopy IoU | Water IoU | OA (%) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| U-Net | ResNet-34 | CE | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
-| DeepLabv3+ | ResNet-50 | CE | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
-| U-Net++ | EffNet-B4 | CE | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
-| U-Net++ (ours) | EffNet-B4 | Focal + Dice | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
-| U-Net++ (ours), 2025 transfer | EffNet-B4 | Focal + Dice | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
+**Caveat.** No hand-corrected test tiles exist yet, so every score below is agreement with the *weak* labels on held-out blocks, not accuracy. The weak labels contain systematic errors (Section 3), so these numbers can rank models but cannot be reported as accuracy until the corrected test set replaces them.
 
-We expect the Built vs Impervious boundary to be the weakest. At 10 m, many roofs and roads are smaller than a pixel. If that IoU stays low, we will merge the two classes for the cooling model and report both versions.
+Test year 2024, mean ± SD over 3 seeds (%):
+
+| Model | Encoder | Loss | mIoU | Built IoU | Impervious IoU | Canopy IoU | Water IoU | OA |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| U-Net | ResNet-34 | CE | 52.4 ± 0.3 | 22.3 ± 1.4 | 62.7 ± 0.6 | 74.2 ± 1.0 | 50.5 ± 1.2 | 73.7 ± 0.4 |
+| DeepLabv3+ | ResNet-50 | CE | 49.1 ± 0.3 | 9.9 ± 2.3 | 61.6 ± 0.5 | 72.0 ± 0.5 | 53.1 ± 0.4 | 71.6 ± 0.2 |
+| U-Net++ | EffNet-B4 | CE | 54.6 ± 0.2 | 25.3 ± 1.5 | 63.1 ± 0.4 | 74.9 ± 0.1 | 55.3 ± 1.7 | 74.3 ± 0.2 |
+| U-Net++ (ours) | EffNet-B4 | Focal + Dice | 55.8 ± 0.1 | 36.2 ± 0.1 | 56.8 ± 0.5 | 75.3 ± 0.1 | 54.8 ± 0.4 | 72.5 ± 0.3 |
+
+mIoU by test year (2025 imagery was never seen in training):
+
+| Model | 2023 | 2024 | 2025 (transfer) |
+| --- | --- | --- | --- |
+| U-Net / ResNet-34, CE | 55.4 ± 0.2 | 52.4 ± 0.3 | 52.9 ± 1.0 |
+| DeepLabv3+ / ResNet-50, CE | 50.5 ± 0.4 | 49.1 ± 0.3 | 48.3 ± 0.2 |
+| U-Net++ / EffNet-B4, CE | 56.6 ± 0.3 | 54.6 ± 0.2 | 54.3 ± 0.3 |
+| U-Net++ / EffNet-B4, Focal + Dice (ours) | 57.4 ± 0.2 | 55.8 ± 0.1 | 55.1 ± 0.3 |
+
+The ranking is the same in every year, and the drop from 2024 to 2025 is under one point for the U-Net++ models. The hybrid loss changes *which* errors the model makes more than how many. It lifts Built IoU by about 11 points over cross-entropy, the rare class it was chosen for, and costs about 6 points of Impervious IoU and 2 points of overall accuracy. Built vs Impervious is the weakest boundary, as expected at 10 m. DeepLabv3+ nearly gives up on the Built class (IoU below 10%). Paired bootstrap tests and the E2 input ablation have not been run.
 
 ### 7.2 LST accuracy (E4)
 
 | Comparison | Bias (°C) | MAE (°C) | RMSE (°C) | R² | Pixels |
 | --- | --- | --- | --- | --- | --- |
-| Our inversion vs USGS L2, all pixels | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
-| Built / Impervious only | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
-| Canopy only | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
-| After removing scene-mean bias | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
+| Our inversion vs USGS L2, all pixels | −6.78 / −5.98 / −6.21 | 6.78 / 5.98 / 6.21 | 7.03 / 6.12 / 6.31 | < 0 | 3.12 M per year |
+| Built / Impervious only | −7.00 / −5.70 / −5.94 | 7.00 / 5.70 / 5.94 | 7.19 / 5.81 / 6.00 | < 0 | 1.33–1.49 M |
+| Canopy only | −6.56 / −6.07 / −6.34 | 6.56 / 6.07 / 6.34 | 6.83 / 6.20 / 6.45 | < 0 | 1.35–1.53 M |
+| After removing the mean bias | 0 | 1.47 / 1.03 / 0.89 | 1.85 / 1.31 / 1.11 | 0.63 / 0.86 / 0.85 | 3.12 M per year |
+
+Values are 2023 / 2024 / 2025. Our inversion is 6–7 °C colder than the USGS product everywhere, in built and canopy pixels alike. That is the expected sign and size for skipping atmospheric correction in a hot, hazy pre-monsoon atmosphere: the atmosphere absorbs part of the surface signal and emits at a lower temperature. Because the offset is nearly the same across classes, the spatial pattern survives. After removing it, the residual error is about 1–1.5 °C and R² reaches 0.85–0.86 in 2024–2025 (0.63 in 2023). R² is negative before debiasing because of the offset alone. For anything that needs absolute temperatures, the USGS product should be used; for hotspot ranking and cooling, which use within-scene differences, our inversion is adequate.
 
 ### 7.3 Hotspots (E5)
 
-&#91;TBD: map of the top-20 hotspots in Delhi; stability across years and thresholds.\] Figure placeholder.
+At I ≥ 2 °C the pixel step produced 1494, 2262 and 958 candidate regions in 2023, 2024 and 2025; for 2024, clustering and the 0.5 ha cut left 1252 ranked hotspots. **The ranking is not yet usable.** The three largest 2024 hotspots cover 13,227, 10,212 and 9,916 ha and lie on the city's western and southern fringe, over dry fallow fields and bare ground. In the pre-monsoon morning, dry bare soil can be hotter than the built city **\[CITE: daytime surface cool island in semi-arid cities\]**, so a definition that compares every pixel with a vegetated rural reference flags it as "urban" heat. The hotspot definition needs an urban mask, for example built-up plus impervious fraction ≥ 0.5 from the segmentation, before E5 is meaningful. \[TBD: re-run with the urban mask; top-20 map; E5 stability.\]
 
 ### 7.4 Cooling model (E6–E8)
 
-| Model | ΔT MAE (°C) | Extent MAE (m) | 90% PI coverage | Sites |
-| --- | --- | --- | --- | --- |
-| Constant (sample mean) | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
-| Linear, synopsis form | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
-| Exponential decay + linear traits (ours) | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
-| Exponential decay + boosted trees | \[TBD\] | \[TBD\] | \[TBD\] | \[TBD\] |
+**Calibration sites.** Of 5196 / 4904 / 4039 candidate green spaces (2023 / 2024 / 2025), 1504 / 1688 / 1099 had a decay length at the lower search bound (cooling confined to the first 30 m ring) and 797 / 752 / 626 at the upper bound (no levelling off within 1 km). A further 7 / 13 / 25 could not be fitted. That leaves 2888 / 2451 / 2289 calibration sites. The excluded sites are not random: the model describes green spaces whose cooling is measurable at 30 m over 1 km, which is about half of them.
 
-Delhi beside \[3\]: mean ΔT = \[TBD\] °C (95% CI \[TBD\]), mean extent = \[TBD\] m. Shah et al. report 2.23 °C and 347 m for Bengaluru.
+Ten-fold spatial cross-validation on 2 km blocks, 2023 / 2024 / 2025:
+
+| Model | Profile MAE (°C) | ΔT MAE (°C) | Extent MAE (m) | 90% PI coverage |
+| --- | --- | --- | --- | --- |
+| Mean profile, no site traits | 0.275 / 0.368 / 0.239 | — | — | — |
+| Linear, synopsis form | 0.293 / 0.386 / 0.255 | — | — | — |
+| Exponential decay + linear traits (ours) | 0.288 / 0.380 / 0.254 | 0.84 / 1.10 / 1.02 | 159 / 192 / 150 | 0.90 / 0.885 / 0.89 |
+| Exponential decay + boosted trees | 0.286 / 0.381 / 0.249 | 0.77 / 1.10 / 0.84 | 161 / 196 / 151 | — |
+
+The decay form beats the synopsis's linear-in-distance form in every year, but **neither trait-based model beats the trait-free mean profile** on the full distance curve. Site area, NDVI, shape and surrounding built fraction explain little of how cooling varies with distance. Across sites, the fitted area coefficient on ΔT is near zero (−0.04 to 0.02 °C per ln m²). The surrounding built fraction (−3.2 to −4.9 °C per unit) and NDVI (2.1 to 3.1 °C per unit) carry the signal. Where the model adds value is boundary cooling with an honest interval: the 90% prediction intervals cover 88.5–90.2% of held-out sites. Boosted trees improve ΔT error in 2023 and 2025 and tie in 2024.
+
+Delhi beside \[3\]: mean ΔT = 1.40 °C (95% CI 1.34–1.47) in 2023, 1.74 °C (1.65–1.83) in 2024 and 1.40 °C (1.30–1.50) in 2025. Mean extent = 175 m (165–185), 215 m (203–227) and 161 m (150–172); medians 60, 81 and 49 m; 5–8% of sites reach the 1 km cap. Shah et al. report 2.23 °C and 347 m for Bengaluru. Delhi's measurable cooling is both weaker and shorter, though \[3\] defines extent from the turning point of each profile rather than a 0.5 °C threshold, so the comparison is context, not a test. Medians below 100 m sit under the native thermal resolution and should be read as upper bounds.
 
 ### 7.5 System performance (E9)
 
-Cooling API latency p50 = \[TBD\] ms, p95 = \[TBD\] ms, over 1000 polygons. Full-city segmentation on CPU via ONNX: \[TBD\] min.
+Cooling API latency p50 = \[TBD\] ms, p95 = \[TBD\] ms, over 1000 polygons. Full-city segmentation via ONNX Runtime on the Colab CPU took 3.8–3.9 min per year (783 overlapping 256 px windows).
 
 ## 8. Discussion and Limitations
 
-&#91;TBD: interpretation once results exist.\] The limits below hold whatever the results show, and the paper should state them plainly.
+Three results shape how the platform should be described. First, single-channel LST without atmospheric correction is biased by 6–7 °C in Delhi's pre-monsoon atmosphere but preserves the spatial pattern, so it suits relative questions, not absolute ones. Second, the cooling model's useful output is boundary cooling with a calibrated interval; it does not predict the shape of the distance curve better than a city-wide average. A planner should read the extent as indicative. Third, a large share of Delhi's green spaces show no cooling resolvable at Landsat scale, and the model says nothing about them. The limits below also apply.
 
 - **Surface vs air temperature.** The system predicts land surface (skin) temperature, not the air temperature people feel. The two are related but not equal. A predicted LST drop indicates relief from surface heat, not a forecast of pedestrian-level weather.
 - **Space-for-time substitution.** The cooling model learns from existing green spaces and assumes a new one will behave like an existing one with the same traits. A newly planted site takes years to reach the canopy and NDVI of a mature park. E7 tests this assumption directly where data allows.
 - **Correlation, not physics.** The regression captures association. It is a screening tool for comparing options quickly. It does not replace 3-D microclimate models such as ENVI-met for final design.
-- **Resolution.** The thermal band is 100 m native. Cooling extents and small pocket parks below about one thermal pixel cannot be resolved.
+- **Resolution.** The thermal band is 100 m native. Cooling extents and small pocket parks below about one thermal pixel cannot be resolved. About 30% of candidate green spaces had cooling confined to the first 30 m ring and were left out of calibration.
+- **Hotspot definition.** Without an urban mask, the hotspot step flags dry bare land on the city fringe (Section 7.3).
 - **Weak labels.** Training labels come from Open Buildings footprints and WorldCover 2021, both of which contain errors, and WorldCover predates our imagery. Only the hand-corrected test set is treated as ground truth.
 - **Single season, single overpass time.** Landsat 8/9 pass mid-morning (about 10:00 local solar time) \[22\], and the window is pre-monsoon. Night-time and monsoon cooling are out of scope.
 - **Configuration effects.** Kumar et al. \[4\] show that how green space is arranged matters, not only how much. We include a shape index but not full connectivity metrics.
@@ -244,7 +265,7 @@ Cooling API latency p50 = \[TBD\] ms, p95 = \[TBD\] ms, over 1000 polygons. Full
 
 ## 9. Conclusion
 
-The platform turns open satellite data into answers a planner can act on: where the city is hottest, and how much a proposed green space would cool it, with an honest error band. It joins four strands of earlier work: LST retrieval \[1\], cloud-based monitoring \[2\], measured park cooling \[3\] and configuration-aware analysis \[4\]. It adds automatic green-space segmentation and a cooling model calibrated per city and tested on held-out areas. \[TBD: one sentence on headline results.\] The code and trained models will be released openly.
+The platform turns open satellite data into answers a planner can act on: where the city is hottest, and how much a proposed green space would cool it, with an honest error band. It joins four strands of earlier work: LST retrieval \[1\], cloud-based monitoring \[2\], measured park cooling \[3\] and configuration-aware analysis \[4\]. It adds automatic green-space segmentation and a cooling model calibrated per city and tested on held-out areas. On Delhi, it predicts a green space's boundary cooling to within about 1 °C with well-calibrated 90% intervals, while showing that site traits do not yet explain how far cooling reaches. The code and trained models will be released openly.
 
 **Disclosure.** An AI assistant (Claude, Anthropic) helped draft text and code. The authors checked all content and take responsibility for it, consistent with IEEE and COPE guidance on generative AI.
 
