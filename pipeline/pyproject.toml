@@ -1,0 +1,28 @@
+[project]
+name = "uhi"
+version = "0.1.0"
+description = "Delhi urban heat island pipeline: Earth Engine composites, LST, segmentation, hotspots, cooling model"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "rasterio>=1.3",
+  "shapely>=2.0",
+  "pyproj>=3.6",
+  "scikit-learn>=1.4",
+  "matplotlib>=3.8",
+  "pillow>=10",
+  "earthengine-api>=1.0",
+]
+
+[project.optional-dependencies]
+train = ["torch>=2.2", "segmentation-models-pytorch>=0.3.3", "onnx>=1.15", "onnxruntime>=1.17"]
+infer = ["onnxruntime>=1.17"]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["uhi*"]

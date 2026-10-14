@@ -1,0 +1,30 @@
+services:
+  db:
+    build: ./db
+    environment:
+      POSTGRES_USER: uhi
+      POSTGRES_PASSWORD: uhi
+      POSTGRES_DB: uhi
+    ports: ["${UHI_DB_PORT:-5434}:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d:ro
+      - ${UHI_DATA:-./pipeline/data}:/data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uhi -d uhi"]
+      interval: 5s
+      retries: 20
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgres://uhi:uhi@db:5432/uhi
+      UHI_YEAR: ${UHI_YEAR:-2024}
+      PORT: 8080
+    ports: ["8080:8080"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

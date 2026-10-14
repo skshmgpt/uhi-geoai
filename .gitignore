@@ -1,0 +1,14 @@
+pipeline/.venv/
+pipeline/data/
+pipeline/tiles/
+pipeline/runs/
+pipeline/results/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+node_modules/
+web/dist/
+web/public/layers/
+.DS_Store
+pipeline/data_demo/
+pipeline/results_demo/
