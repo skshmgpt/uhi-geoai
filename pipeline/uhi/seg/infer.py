@@ -18,7 +18,7 @@ from .. import rio
 from .tiles import TILE, model_input_raw
 
 
-def export(run_dir, opset=17):
+def export(run_dir, opset=18):
     import torch
 
     from .train import build_model

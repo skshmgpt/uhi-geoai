@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-train = ["torch>=2.2", "segmentation-models-pytorch>=0.3.3", "onnx>=1.15", "onnxruntime>=1.17"]
+train = ["torch>=2.2", "segmentation-models-pytorch>=0.3.3", "onnx>=1.15", "onnxscript>=0.2", "onnxruntime>=1.17"]
 infer = ["onnxruntime>=1.17"]
 dev = ["pytest>=8"]
 
