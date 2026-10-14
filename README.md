@@ -47,7 +47,7 @@ Files land in `MyDrive/uhi-geoai/`: `labels_weak`, `worldcover30`, and per year 
 
 ### 3. Colab (GPU)
 
-Open `notebooks/uhi_colab.ipynb` in Colab with a T4 runtime. Either push this repo to GitHub and set `REPO_URL` in the first cell, or upload `pipeline/` to `MyDrive/uhi-geoai-code/pipeline/`. Run all cells. Training is 4 configurations × 3 seeds and resumes where it stopped if Colab disconnects. Outputs go to `MyDrive/uhi-geoai-out/`.
+Open `notebooks/uhi_colab.ipynb` in Colab with a T4 runtime. The first cell clones https://github.com/skshmgpt/uhi-geoai; set `REPO_URL = ""` to use a copy of `pipeline/` in `MyDrive/uhi-geoai-code/pipeline/` instead. Run all cells. Training is 4 configurations × 3 seeds and resumes where it stopped if Colab disconnects. Outputs go to `MyDrive/uhi-geoai-out/`.
 
 Test-set accuracy is only meaningful with hand-corrected test tiles in `uhi-geoai-out/tiles/test_corrected/`. Until they exist, `metrics.json` marks the scores as `partly weak labels`.
 
